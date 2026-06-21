@@ -1,0 +1,17 @@
+server:
+  port: 8084
+  mode: debug  # debug | release | test
+
+database:
+  dsn: "root:1234@tcp(127.0.0.1:3306)/iam_platform?charset=utf8mb4&parseTime=True&loc=Local"
+  max_open_conns: 100
+  max_idle_conns: 10
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "iam-platform-secret-key-change-in-production"
+  expire_hours: 24

@@ -15,7 +15,6 @@ var (
 	ErrUsernameAlreadyExists = errors.New("用户名已存在")
 	ErrUserNotFound          = errors.New("用户不存在")
 	ErrInvalidPassword       = errors.New("密码错误")
-	ErrTokenVersionExpired   = errors.New("Token 版本已失效")
 )
 
 type RegisterRequest struct {

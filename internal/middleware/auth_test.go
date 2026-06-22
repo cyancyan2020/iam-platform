@@ -13,7 +13,8 @@ import (
 
 const testJWTSecret = "test-secret-for-middleware"
 
-func setupTestRouter(tvRepo *mocks.TokenVersionRepository) *gin.Engine {
+func setupTestRouter(t *testing.T, tvRepo *mocks.TokenVersionRepository) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(AuthMiddleware(testJWTSecret, tvRepo))
@@ -28,8 +29,9 @@ func setupTestRouter(tvRepo *mocks.TokenVersionRepository) *gin.Engine {
 	return r
 }
 
-func newVersionMockReturning(v int) *mocks.TokenVersionRepository {
-	m := new(mocks.TokenVersionRepository)
+func newVersionMockReturning(t *testing.T, v int) *mocks.TokenVersionRepository {
+	t.Helper()
+	m := mocks.NewTokenVersionRepository(t)
 	m.On("Get", mock.Anything, mock.Anything).Return(v, nil)
 	return m
 }
@@ -40,7 +42,7 @@ func generateTestToken(userID uint64, username string, version int) string {
 }
 
 func TestAuthMiddleware_ValidToken(t *testing.T) {
-	router := setupTestRouter(newVersionMockReturning(0))
+	router := setupTestRouter(t, newVersionMockReturning(t, 0))
 	token := generateTestToken(1, "testuser", 0)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -55,7 +57,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_NoToken(t *testing.T) {
-	router := setupTestRouter(newVersionMockReturning(0))
+	router := setupTestRouter(t, mocks.NewTokenVersionRepository(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
@@ -68,7 +70,7 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
-	router := setupTestRouter(newVersionMockReturning(0))
+	router := setupTestRouter(t, mocks.NewTokenVersionRepository(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer invalid.token.here")
@@ -82,7 +84,7 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_MalformedHeader(t *testing.T) {
-	router := setupTestRouter(newVersionMockReturning(0))
+	router := setupTestRouter(t, mocks.NewTokenVersionRepository(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "NoBearerPrefix")
@@ -96,10 +98,9 @@ func TestAuthMiddleware_MalformedHeader(t *testing.T) {
 }
 
 func TestAuthMiddleware_TokenVersionMismatch(t *testing.T) {
-	tvRepo := newVersionMockReturning(10)
-	router := setupTestRouter(tvRepo)
+	tvRepo := newVersionMockReturning(t, 10)
+	router := setupTestRouter(t, tvRepo)
 
-	// Token 中 version=3，但 Redis 中已是 10（被其他设备登录踢掉）
 	token := generateTestToken(1, "testuser", 3)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -114,7 +115,7 @@ func TestAuthMiddleware_TokenVersionMismatch(t *testing.T) {
 }
 
 func TestAuthMiddleware_UserClaimsInContext(t *testing.T) {
-	router := setupTestRouter(newVersionMockReturning(0))
+	router := setupTestRouter(t, newVersionMockReturning(t, 0))
 	token := generateTestToken(42, "answer", 0)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)

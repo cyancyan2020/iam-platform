@@ -21,7 +21,7 @@ func NewTokenVersionRepository(client *redis.Client) TokenVersionRepository {
 }
 
 func key(userID uint64) string {
-	return fmt.Sprintf("user:token_version:%d", userID)
+	return fmt.Sprintf("user:%d:token_version", userID)
 }
 
 func (r *tokenVersionRepository) Incr(ctx context.Context, userID uint64) (int, error) {

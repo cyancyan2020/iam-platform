@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/cyancyan2020/iam-platform/internal/handler"
+	"github.com/cyancyan2020/iam-platform/internal/middleware"
 	"github.com/cyancyan2020/iam-platform/internal/repository"
 	"github.com/cyancyan2020/iam-platform/internal/service"
 	"github.com/gin-gonic/gin"
@@ -35,8 +36,11 @@ func main() {
 	sqlDB.SetMaxOpenConns(viper.GetInt("database.max_open_conns"))
 	sqlDB.SetMaxIdleConns(viper.GetInt("database.max_idle_conns"))
 
+	jwtSecret := viper.GetString("jwt.secret")
+	jwtExpireHours := viper.GetInt("jwt.expire_hours")
+
 	userRepo := repository.NewUserRepository(db)
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, jwtSecret, jwtExpireHours)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	gin.SetMode(viper.GetString("server.mode"))
@@ -55,6 +59,26 @@ func main() {
 	api := r.Group("/api/v1")
 	{
 		api.POST("/users/register", userHandler.Register)
+		api.POST("/users/login", userHandler.Login)
+
+		protected := api.Group("")
+		protected.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			protected.GET("/profile", func(c *gin.Context) {
+				claims, ok := c.Get("user")
+				if !ok {
+					c.JSON(http.StatusInternalServerError, gin.H{
+						"code":    500,
+						"message": "服务器内部错误",
+					})
+					return
+				}
+				c.JSON(http.StatusOK, gin.H{
+					"code": 200,
+					"data": claims,
+				})
+			})
+		}
 	}
 
 	port := viper.GetString("server.port")

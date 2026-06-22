@@ -1,93 +1,37 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
 
 const userStore = useUserStore()
-const router = useRouter()
 
 onMounted(() => {
   userStore.fetchProfile()
+  userStore.fetchPermissions()
 })
-
-function handleLogout() {
-  userStore.logout()
-}
 </script>
 
 <template>
   <div class="dashboard">
-    <header class="top-bar">
-      <div class="top-bar-left">
-        <span class="brand">IAM Platform</span>
-      </div>
-      <div class="top-bar-right">
-        <span class="greeting">{{ userStore.username }}</span>
-        <a-button type="text" size="small" @click="handleLogout">
-          <template #icon>
-            <icon-export />
-          </template>
-          退出
-        </a-button>
-      </div>
-    </header>
-
-    <main class="main-content">
-      <div class="welcome-card">
-        <h2>欢迎使用 IAM Platform</h2>
-        <p>您已通过身份认证，可以访问受保护的资源。</p>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">用户名</span>
-            <span class="info-value">{{ userStore.username }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">角色</span>
-            <span class="info-value">{{ userStore.roleId === 1 ? '管理员' : '普通用户' }}</span>
-          </div>
+    <div class="welcome-card">
+      <h2>欢迎使用 IAM Platform</h2>
+      <p>您已通过身份认证，可以访问受保护的资源。</p>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">用户名</span>
+          <span class="info-value">{{ userStore.username }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">角色</span>
+          <span class="info-value">{{ userStore.roleId === 1 ? '管理员' : userStore.roleId === 2 ? '普通用户' : '未分配' }}</span>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .dashboard {
-  min-height: 100vh;
-  background: #f5f7fa;
-}
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 24px;
-  background: #fff;
-  border-bottom: 1px solid #e5e6eb;
-}
-
-.brand {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1d2129;
-}
-
-.top-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.greeting {
-  font-size: 14px;
-  color: #4e5969;
-}
-
-.main-content {
   max-width: 960px;
-  margin: 0 auto;
-  padding: 32px 24px;
 }
 
 .welcome-card {

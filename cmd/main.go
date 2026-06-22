@@ -62,7 +62,7 @@ func main() {
 	roleRepo := repository.NewRoleRepository(db)
 	rolePermRepo := repository.NewRolePermissionRepository(db)
 
-	userSvc := service.NewUserService(userRepo, tokenVersionRepo, jwtSecret, jwtExpireHours)
+	userSvc := service.NewUserService(userRepo, tokenVersionRepo, roleRepo, jwtSecret, jwtExpireHours)
 	roleSvc := service.NewRoleService(roleRepo, permRepo, rolePermRepo, userRepo)
 
 	userHandler := handler.NewUserHandler(userSvc)
@@ -93,6 +93,12 @@ func main() {
 		protected.Use(middleware.PermissionCheck(permRepo))
 		{
 			protected.GET("/profile", userHandler.Profile)
+
+			// 用户管理
+			protected.GET("/users", userHandler.ListUsers)
+			protected.POST("/users", userHandler.CreateUser)
+			protected.PUT("/users/:id", userHandler.UpdateUser)
+			protected.DELETE("/users/:id", userHandler.DeleteUser)
 
 			// 用户角色分配
 			protected.POST("/users/:id/role", roleHandler.AssignRole)

@@ -11,14 +11,36 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
-      path: '/dashboard',
-      name: 'Dashboard',
-      component: () => import('@/views/Dashboard.vue'),
+      path: '/',
+      component: () => import('@/views/Layout.vue'),
       meta: { requiresAuth: true },
-    },
-    {
-      path: '/:pathMatch(.*)*',
       redirect: '/dashboard',
+      children: [
+        {
+          path: 'dashboard',
+          name: 'Dashboard',
+          component: () => import('@/views/Dashboard.vue'),
+        },
+        {
+          path: 'system/users',
+          name: 'Users',
+          component: () => import('@/views/system/Users.vue'),
+        },
+        {
+          path: 'system/roles',
+          name: 'Roles',
+          component: () => import('@/views/system/Roles.vue'),
+        },
+        {
+          path: 'system/permissions',
+          name: 'Permissions',
+          component: () => import('@/views/system/Permissions.vue'),
+        },
+        {
+          path: ':pathMatch(.*)*',
+          redirect: '/dashboard',
+        },
+      ],
     },
   ],
 })

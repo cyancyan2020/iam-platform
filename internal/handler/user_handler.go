@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
 	"github.com/gin-gonic/gin"
@@ -77,6 +78,85 @@ func (h *UserHandler) Login(c *gin.Context) {
 		"message": "登录成功",
 		"data":    resp,
 	})
+}
+
+func (h *UserHandler) ListUsers(c *gin.Context) {
+	var query service.UserListQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		return
+	}
+
+	result, err := h.userService.ListUsers(c.Request.Context(), &query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": result})
+}
+
+func (h *UserHandler) CreateUser(c *gin.Context) {
+	var req service.CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		return
+	}
+
+	if err := h.userService.CreateUser(c.Request.Context(), &req); err != nil {
+		if err == service.ErrUsernameAlreadyExists {
+			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"code": 201, "message": "创建成功"})
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户 ID"})
+		return
+	}
+
+	var req service.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		return
+	}
+
+	if err := h.userService.UpdateUser(c.Request.Context(), id, &req); err != nil {
+		if err == service.ErrUserNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "更新成功"})
+}
+
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户 ID"})
+		return
+	}
+
+	if err := h.userService.DeleteUser(c.Request.Context(), id); err != nil {
+		if err == service.ErrUserNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "删除成功"})
 }
 
 func (h *UserHandler) Profile(c *gin.Context) {

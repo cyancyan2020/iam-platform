@@ -23,7 +23,7 @@ func TestRegister_Success(t *testing.T) {
 		return u.Username == "newuser" && u.PasswordHash != "" && u.PasswordHash != "secret123"
 	})).Return(nil)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "newuser",
 		Password: "secret123",
@@ -38,7 +38,7 @@ func TestRegister_DuplicateUsername(t *testing.T) {
 	repo := mocks.NewUserRepository(t)
 	repo.On("FindByUsername", mock.Anything, "existing").Return(&model.User{ID: 1, Username: "existing"}, nil)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "existing",
 		Password: "secret123",
@@ -53,7 +53,7 @@ func TestRegister_DBErrorOnFind(t *testing.T) {
 	repo := mocks.NewUserRepository(t)
 	repo.On("FindByUsername", mock.Anything, "anyone").Return(nil, dbErr)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "anyone",
 		Password: "secret123",
@@ -69,7 +69,7 @@ func TestRegister_DBErrorOnCreate(t *testing.T) {
 	repo.On("FindByUsername", mock.Anything, "newuser").Return(nil, gorm.ErrRecordNotFound)
 	repo.On("Create", mock.Anything, mock.Anything).Return(dbErr)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "newuser",
 		Password: "secret123",
@@ -92,7 +92,7 @@ func TestLogin_Success(t *testing.T) {
 	tvRepo := mocks.NewTokenVersionRepository(t)
 	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(3, nil)
 
-	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, tvRepo, mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	resp, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "correct-password",
@@ -126,7 +126,7 @@ func TestLogin_TokenVersionIncrements(t *testing.T) {
 	tvRepo := mocks.NewTokenVersionRepository(t)
 	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(5, nil)
 
-	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, tvRepo, mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	resp, _ := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "correct-password",
@@ -152,7 +152,7 @@ func TestLogin_TokenVersionIncrError(t *testing.T) {
 	tvRepo := mocks.NewTokenVersionRepository(t)
 	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(0, redisErr)
 
-	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, tvRepo, mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	_, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "correct-password",
@@ -166,7 +166,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 	repo := mocks.NewUserRepository(t)
 	repo.On("FindByUsername", mock.Anything, "nobody").Return(nil, gorm.ErrRecordNotFound)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	_, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "nobody",
 		Password: "whatever",
@@ -186,7 +186,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 		PasswordHash: hash,
 	}, nil)
 
-	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, mocks.NewTokenVersionRepository(t), mocks.NewRoleRepository(t), testJWTSecret, testJWTExpire)
 	_, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "wrong-password",

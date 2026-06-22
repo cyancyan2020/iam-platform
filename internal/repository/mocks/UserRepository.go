@@ -32,6 +32,24 @@ func (_m *UserRepository) Create(ctx context.Context, user *model.User) error {
 	return r0
 }
 
+// Delete provides a mock function with given fields: ctx, id
+func (_m *UserRepository) Delete(ctx context.Context, id uint64) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // FindByID provides a mock function with given fields: ctx, id
 func (_m *UserRepository) FindByID(ctx context.Context, id uint64) (*model.User, error) {
 	ret := _m.Called(ctx, id)
@@ -90,6 +108,43 @@ func (_m *UserRepository) FindByUsername(ctx context.Context, username string) (
 	}
 
 	return r0, r1
+}
+
+// List provides a mock function with given fields: ctx, keyword, offset, limit
+func (_m *UserRepository) List(ctx context.Context, keyword string, offset int, limit int) ([]model.User, int64, error) {
+	ret := _m.Called(ctx, keyword, offset, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for List")
+	}
+
+	var r0 []model.User
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, int) ([]model.User, int64, error)); ok {
+		return rf(ctx, keyword, offset, limit)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, int) []model.User); ok {
+		r0 = rf(ctx, keyword, offset, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.User)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, int) int64); ok {
+		r1 = rf(ctx, keyword, offset, limit)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, int, int) error); ok {
+		r2 = rf(ctx, keyword, offset, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // Update provides a mock function with given fields: ctx, user

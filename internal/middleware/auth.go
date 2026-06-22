@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cyancyan2020/iam-platform/internal/repository"
 	pkgjwt "github.com/cyancyan2020/iam-platform/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
+func AuthMiddleware(jwtSecret string, tokenVersionRepo repository.TokenVersionRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -33,6 +34,23 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
 				"message": "Token 无效或已过期",
+			})
+			return
+		}
+
+		currentVersion, err := tokenVersionRepo.Get(c.Request.Context(), claims.UserID)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "服务器内部错误",
+			})
+			return
+		}
+
+		if claims.TokenVersion < currentVersion {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "Token 已失效（账号在其他设备登录）",
 			})
 			return
 		}

@@ -16,6 +16,10 @@ import (
 const testJWTSecret = "test-secret"
 const testJWTExpire = 1
 
+func newTokenVersionMock() *mocks.TokenVersionRepository {
+	return new(mocks.TokenVersionRepository)
+}
+
 func TestRegister_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	repo.On("FindByUsername", mock.Anything, "newuser").Return(nil, gorm.ErrRecordNotFound)
@@ -23,7 +27,7 @@ func TestRegister_Success(t *testing.T) {
 		return u.Username == "newuser" && u.PasswordHash != "" && u.PasswordHash != "secret123"
 	})).Return(nil)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "newuser",
 		Password: "secret123",
@@ -39,7 +43,7 @@ func TestRegister_DuplicateUsername(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	repo.On("FindByUsername", mock.Anything, "existing").Return(&model.User{ID: 1, Username: "existing"}, nil)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "existing",
 		Password: "secret123",
@@ -55,7 +59,7 @@ func TestRegister_DBErrorOnFind(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	repo.On("FindByUsername", mock.Anything, "anyone").Return(nil, dbErr)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "anyone",
 		Password: "secret123",
@@ -71,7 +75,7 @@ func TestRegister_DBErrorOnCreate(t *testing.T) {
 	repo.On("FindByUsername", mock.Anything, "newuser").Return(nil, gorm.ErrRecordNotFound)
 	repo.On("Create", mock.Anything, mock.Anything).Return(dbErr)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	err := svc.Register(context.Background(), &RegisterRequest{
 		Username: "newuser",
 		Password: "secret123",
@@ -91,7 +95,10 @@ func TestLogin_Success(t *testing.T) {
 		PasswordHash: hash,
 	}, nil)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	tvRepo := newTokenVersionMock()
+	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(3, nil)
+
+	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
 	resp, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "correct-password",
@@ -110,13 +117,65 @@ func TestLogin_Success(t *testing.T) {
 	if claims.UserID != 1 || claims.Username != "testuser" {
 		t.Fatalf("Token Claims 内容不正确: UserID=%d, Username=%s", claims.UserID, claims.Username)
 	}
+	tvRepo.AssertExpectations(t)
+}
+
+func TestLogin_TokenVersionIncrements(t *testing.T) {
+	hash, _ := utils.HashPassword("correct-password")
+
+	repo := new(mocks.UserRepository)
+	repo.On("FindByUsername", mock.Anything, "testuser").Return(&model.User{
+		ID:           1,
+		Username:     "testuser",
+		PasswordHash: hash,
+	}, nil)
+
+	tvRepo := newTokenVersionMock()
+	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(5, nil)
+
+	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
+	resp, _ := svc.Login(context.Background(), &LoginRequest{
+		Username: "testuser",
+		Password: "correct-password",
+	})
+
+	claims, _ := pkgjwt.ParseToken(resp.Token, testJWTSecret)
+	if claims.TokenVersion != 5 {
+		t.Fatalf("TokenVersion 应为 Incr 返回值 5, 实际: %d", claims.TokenVersion)
+	}
+	tvRepo.AssertExpectations(t)
+}
+
+func TestLogin_TokenVersionIncrError(t *testing.T) {
+	hash, _ := utils.HashPassword("correct-password")
+
+	repo := new(mocks.UserRepository)
+	repo.On("FindByUsername", mock.Anything, "testuser").Return(&model.User{
+		ID:           1,
+		Username:     "testuser",
+		PasswordHash: hash,
+	}, nil)
+
+	redisErr := errors.New("redis connection refused")
+	tvRepo := newTokenVersionMock()
+	tvRepo.On("Incr", mock.Anything, uint64(1)).Return(0, redisErr)
+
+	svc := NewUserService(repo, tvRepo, testJWTSecret, testJWTExpire)
+	_, err := svc.Login(context.Background(), &LoginRequest{
+		Username: "testuser",
+		Password: "correct-password",
+	})
+	if !errors.Is(err, redisErr) {
+		t.Fatalf("Redis 异常应透传错误, 实际: %v", err)
+	}
+	tvRepo.AssertExpectations(t)
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	repo.On("FindByUsername", mock.Anything, "nobody").Return(nil, gorm.ErrRecordNotFound)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	_, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "nobody",
 		Password: "whatever",
@@ -136,7 +195,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 		PasswordHash: hash,
 	}, nil)
 
-	svc := NewUserService(repo, testJWTSecret, testJWTExpire)
+	svc := NewUserService(repo, newTokenVersionMock(), testJWTSecret, testJWTExpire)
 	_, err := svc.Login(context.Background(), &LoginRequest{
 		Username: "testuser",
 		Password: "wrong-password",

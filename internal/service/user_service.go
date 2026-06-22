@@ -15,6 +15,7 @@ var (
 	ErrUsernameAlreadyExists = errors.New("用户名已存在")
 	ErrUserNotFound          = errors.New("用户不存在")
 	ErrInvalidPassword       = errors.New("密码错误")
+	ErrTokenVersionExpired   = errors.New("Token 版本已失效")
 )
 
 type RegisterRequest struct {
@@ -38,16 +39,18 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo       repository.UserRepository
-	jwtSecret      string
-	jwtExpireHours int
+	userRepo          repository.UserRepository
+	tokenVersionRepo  repository.TokenVersionRepository
+	jwtSecret         string
+	jwtExpireHours    int
 }
 
-func NewUserService(userRepo repository.UserRepository, jwtSecret string, jwtExpireHours int) UserService {
+func NewUserService(userRepo repository.UserRepository, tokenVersionRepo repository.TokenVersionRepository, jwtSecret string, jwtExpireHours int) UserService {
 	return &userService{
-		userRepo:       userRepo,
-		jwtSecret:      jwtSecret,
-		jwtExpireHours: jwtExpireHours,
+		userRepo:         userRepo,
+		tokenVersionRepo: tokenVersionRepo,
+		jwtSecret:        jwtSecret,
+		jwtExpireHours:   jwtExpireHours,
 	}
 }
 
@@ -87,7 +90,12 @@ func (s *userService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		return nil, ErrInvalidPassword
 	}
 
-	token, err := pkgjwt.GenerateToken(user.ID, 0, user.Username, "", 0, s.jwtSecret, s.jwtExpireHours)
+	version, err := s.tokenVersionRepo.Incr(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := pkgjwt.GenerateToken(user.ID, 0, user.Username, "", version, s.jwtSecret, s.jwtExpireHours)
 	if err != nil {
 		return nil, err
 	}

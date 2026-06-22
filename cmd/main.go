@@ -10,6 +10,7 @@ import (
 	"github.com/cyancyan2020/iam-platform/internal/repository"
 	"github.com/cyancyan2020/iam-platform/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -36,11 +37,18 @@ func main() {
 	sqlDB.SetMaxOpenConns(viper.GetInt("database.max_open_conns"))
 	sqlDB.SetMaxIdleConns(viper.GetInt("database.max_idle_conns"))
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     viper.GetString("redis.addr"),
+		Password: viper.GetString("redis.password"),
+		DB:       viper.GetInt("redis.db"),
+	})
+
 	jwtSecret := viper.GetString("jwt.secret")
 	jwtExpireHours := viper.GetInt("jwt.expire_hours")
 
 	userRepo := repository.NewUserRepository(db)
-	userSvc := service.NewUserService(userRepo, jwtSecret, jwtExpireHours)
+	tokenVersionRepo := repository.NewTokenVersionRepository(rdb)
+	userSvc := service.NewUserService(userRepo, tokenVersionRepo, jwtSecret, jwtExpireHours)
 	userHandler := handler.NewUserHandler(userSvc)
 
 	gin.SetMode(viper.GetString("server.mode"))
@@ -62,7 +70,7 @@ func main() {
 		api.POST("/users/login", userHandler.Login)
 
 		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware(jwtSecret))
+		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
 		{
 			protected.GET("/profile", func(c *gin.Context) {
 				claims, ok := c.Get("user")

@@ -48,6 +48,8 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 	tokenVersionRepo := repository.NewTokenVersionRepository(rdb)
+	permRepo := repository.NewPermissionRepository(db)
+
 	userSvc := service.NewUserService(userRepo, tokenVersionRepo, jwtSecret, jwtExpireHours)
 	userHandler := handler.NewUserHandler(userSvc)
 
@@ -71,6 +73,7 @@ func main() {
 
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
+		protected.Use(middleware.PermissionCheck(permRepo))
 		{
 			protected.GET("/profile", func(c *gin.Context) {
 				claims, ok := c.Get("user")

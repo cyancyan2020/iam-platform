@@ -32,6 +32,36 @@ func (_m *UserRepository) Create(ctx context.Context, user *model.User) error {
 	return r0
 }
 
+// FindByID provides a mock function with given fields: ctx, id
+func (_m *UserRepository) FindByID(ctx context.Context, id uint64) (*model.User, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindByID")
+	}
+
+	var r0 *model.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*model.User, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) *model.User); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.User)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindByUsername provides a mock function with given fields: ctx, username
 func (_m *UserRepository) FindByUsername(ctx context.Context, username string) (*model.User, error) {
 	ret := _m.Called(ctx, username)
@@ -60,6 +90,24 @@ func (_m *UserRepository) FindByUsername(ctx context.Context, username string) (
 	}
 
 	return r0, r1
+}
+
+// Update provides a mock function with given fields: ctx, user
+func (_m *UserRepository) Update(ctx context.Context, user *model.User) error {
+	ret := _m.Called(ctx, user)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *model.User) error); ok {
+		r0 = rf(ctx, user)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // NewUserRepository creates a new instance of UserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

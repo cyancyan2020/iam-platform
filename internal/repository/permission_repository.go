@@ -3,11 +3,17 @@ package repository
 import (
 	"context"
 
+	"github.com/cyancyan2020/iam-platform/internal/model"
 	"gorm.io/gorm"
 )
 
 type PermissionRepository interface {
 	HasPermission(ctx context.Context, userID uint64, path, method string) (bool, error)
+	FindByID(ctx context.Context, id uint64) (*model.Permission, error)
+	List(ctx context.Context) ([]model.Permission, error)
+	Create(ctx context.Context, perm *model.Permission) error
+	Update(ctx context.Context, perm *model.Permission) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type permissionRepository struct {
@@ -32,4 +38,36 @@ func (r *permissionRepository) HasPermission(ctx context.Context, userID uint64,
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *permissionRepository) FindByID(ctx context.Context, id uint64) (*model.Permission, error) {
+	var perm model.Permission
+	err := r.db.WithContext(ctx).First(&perm, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &perm, nil
+}
+
+func (r *permissionRepository) List(ctx context.Context) ([]model.Permission, error) {
+	var perms []model.Permission
+	err := r.db.WithContext(ctx).Find(&perms).Error
+	return perms, err
+}
+
+func (r *permissionRepository) Create(ctx context.Context, perm *model.Permission) error {
+	return r.db.WithContext(ctx).Create(perm).Error
+}
+
+func (r *permissionRepository) Update(ctx context.Context, perm *model.Permission) error {
+	return r.db.WithContext(ctx).Model(perm).Updates(map[string]interface{}{
+		"path":      perm.Path,
+		"method":    perm.Method,
+		"name":      perm.Name,
+		"parent_id": perm.ParentID,
+	}).Error
+}
+
+func (r *permissionRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&model.Permission{}, id).Error
 }

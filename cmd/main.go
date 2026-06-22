@@ -59,9 +59,15 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	tokenVersionRepo := repository.NewTokenVersionRepository(rdb)
 	permRepo := repository.NewPermissionRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
+	rolePermRepo := repository.NewRolePermissionRepository(db)
 
 	userSvc := service.NewUserService(userRepo, tokenVersionRepo, jwtSecret, jwtExpireHours)
+	roleSvc := service.NewRoleService(roleRepo, permRepo, rolePermRepo, userRepo)
+
 	userHandler := handler.NewUserHandler(userSvc)
+	roleHandler := handler.NewRoleHandler(roleSvc)
+	permHandler := handler.NewPermissionHandler(roleSvc)
 
 	gin.SetMode(viper.GetString("server.mode"))
 
@@ -87,6 +93,24 @@ func main() {
 		protected.Use(middleware.PermissionCheck(permRepo))
 		{
 			protected.GET("/profile", userHandler.Profile)
+
+			// 用户角色分配
+			protected.POST("/users/:id/role", roleHandler.AssignRole)
+
+			// 角色管理
+			protected.GET("/roles", roleHandler.ListRoles)
+			protected.POST("/roles", roleHandler.CreateRole)
+			protected.PUT("/roles/:id", roleHandler.UpdateRole)
+			protected.DELETE("/roles/:id", roleHandler.DeleteRole)
+
+			// 角色权限分配
+			protected.POST("/roles/:id/permissions", roleHandler.SetRolePermissions)
+
+			// 权限管理
+			protected.GET("/permissions", permHandler.ListPermissions)
+			protected.POST("/permissions", permHandler.CreatePermission)
+			protected.PUT("/permissions/:id", permHandler.UpdatePermission)
+			protected.DELETE("/permissions/:id", permHandler.DeletePermission)
 		}
 	}
 

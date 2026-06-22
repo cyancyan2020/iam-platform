@@ -147,17 +147,35 @@ func (_m *UserRepository) List(ctx context.Context, keyword string, offset int, 
 	return r0, r1, r2
 }
 
-// Update provides a mock function with given fields: ctx, user
-func (_m *UserRepository) Update(ctx context.Context, user *model.User) error {
-	ret := _m.Called(ctx, user)
+// Update provides a mock function with given fields: ctx, id, updates
+func (_m *UserRepository) Update(ctx context.Context, id uint64, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, id, updates)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.User) error); ok {
-		r0 = rf(ctx, user)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, map[string]interface{}) error); ok {
+		r0 = rf(ctx, id, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateRoleID provides a mock function with given fields: ctx, id, roleID
+func (_m *UserRepository) UpdateRoleID(ctx context.Context, id uint64, roleID uint64) error {
+	ret := _m.Called(ctx, id, roleID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRoleID")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) error); ok {
+		r0 = rf(ctx, id, roleID)
 	} else {
 		r0 = ret.Error(0)
 	}

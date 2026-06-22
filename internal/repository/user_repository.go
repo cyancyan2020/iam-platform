@@ -12,7 +12,8 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.User, error)
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
 	List(ctx context.Context, keyword string, offset, limit int) ([]model.User, int64, error)
-	Update(ctx context.Context, user *model.User) error
+	Update(ctx context.Context, id uint64, updates map[string]interface{}) error
+	UpdateRoleID(ctx context.Context, id uint64, roleID uint64) error
 	Delete(ctx context.Context, id uint64) error
 }
 
@@ -69,11 +70,12 @@ func (r *userRepository) List(ctx context.Context, keyword string, offset, limit
 	return users, total, nil
 }
 
-func (r *userRepository) Update(ctx context.Context, user *model.User) error {
-	return r.db.WithContext(ctx).Model(user).Updates(map[string]interface{}{
-		"nickname": user.Nickname,
-		"role_id":  user.RoleID,
-	}).Error
+func (r *userRepository) Update(ctx context.Context, id uint64, updates map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.User{ID: id}).Updates(updates).Error
+}
+
+func (r *userRepository) UpdateRoleID(ctx context.Context, id uint64, roleID uint64) error {
+	return r.db.WithContext(ctx).Model(&model.User{ID: id}).Update("role_id", roleID).Error
 }
 
 func (r *userRepository) Delete(ctx context.Context, id uint64) error {

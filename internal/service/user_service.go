@@ -40,8 +40,8 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Nickname string `json:"nickname" binding:"max=64"`
-	RoleID   uint64 `json:"role_id"`
+	Nickname *string `json:"nickname" binding:"omitempty,max=64"`
+	RoleID   *uint64 `json:"role_id"`
 }
 
 type UserListQuery struct {
@@ -210,7 +210,28 @@ func (s *userService) UpdateUser(ctx context.Context, id uint64, req *UpdateUser
 		}
 		return err
 	}
-	return s.userRepo.Update(ctx, &model.User{ID: id, Nickname: req.Nickname, RoleID: req.RoleID})
+
+	// 校验角色存在性（nil=不修改, 非0=需存在）
+	if req.RoleID != nil && *req.RoleID != 0 {
+		_, err = s.roleRepo.FindByID(ctx, *req.RoleID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrRoleNotFound
+			}
+			return err
+		}
+	}
+
+	// 仅更新客户端显式传入的字段
+	updates := map[string]interface{}{}
+	if req.Nickname != nil {
+		updates["nickname"] = *req.Nickname
+	}
+	if req.RoleID != nil {
+		updates["role_id"] = *req.RoleID
+	}
+
+	return s.userRepo.Update(ctx, id, updates)
 }
 
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {

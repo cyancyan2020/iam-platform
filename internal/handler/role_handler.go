@@ -37,6 +37,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 		case service.ErrRoleNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		default:
+			log.Printf("AssignRole userID=%d roleID=%d error: %v", userID, req.RoleID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		}
 		return
@@ -48,6 +49,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 func (h *RoleHandler) ListRoles(c *gin.Context) {
 	roles, err := h.roleService.ListRoles(c.Request.Context())
 	if err != nil {
+		log.Printf("ListRoles error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -67,6 +69,7 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
 			return
 		}
+		log.Printf("CreateRole code=%s error: %v", req.Code, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -94,6 +97,7 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 		case service.ErrRoleCodeAlreadyExists:
 			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
 		default:
+			log.Printf("UpdateRole id=%d error: %v", id, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		}
 		return
@@ -114,6 +118,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		log.Printf("DeleteRole id=%d error: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -139,6 +144,7 @@ func (h *RoleHandler) SetRolePermissions(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		log.Printf("SetRolePermissions roleID=%d error: %v", roleID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}

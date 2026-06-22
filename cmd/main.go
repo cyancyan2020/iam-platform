@@ -91,12 +91,15 @@ func main() {
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
 		protected.Use(middleware.PermissionCheck(permRepo))
-		protected.Use(middleware.DataScopeMiddleware(userRepo, roleRepo))
 		{
 			protected.GET("/profile", userHandler.Profile)
 
-			// 用户管理
-			protected.GET("/users", userHandler.ListUsers)
+			// 用户管理（GET 列表需要数据权限过滤）
+			scope := protected.Group("")
+			scope.Use(middleware.DataScopeMiddleware(userRepo, roleRepo))
+			{
+				scope.GET("/users", userHandler.ListUsers)
+			}
 			protected.POST("/users", userHandler.CreateUser)
 			protected.PUT("/users/:id", userHandler.UpdateUser)
 			protected.DELETE("/users/:id", userHandler.DeleteUser)

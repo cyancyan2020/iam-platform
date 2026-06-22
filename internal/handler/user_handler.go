@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -34,6 +35,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 			})
 			return
 		}
+		log.Printf("Register error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "服务器内部错误",
@@ -66,6 +68,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 			})
 			return
 		}
+		log.Printf("Login error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "服务器内部错误",
@@ -89,6 +92,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 
 	result, err := h.userService.ListUsers(c.Request.Context(), &query)
 	if err != nil {
+		log.Printf("ListUsers error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -108,6 +112,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
 			return
 		}
+		log.Printf("CreateUser error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -133,6 +138,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		log.Printf("UpdateUser id=%d error: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -152,6 +158,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		log.Printf("DeleteUser id=%d error: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -162,6 +169,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 func (h *UserHandler) Profile(c *gin.Context) {
 	claims, ok := c.Get("user")
 	if !ok {
+		log.Printf("Profile: claims not found in context")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "服务器内部错误",

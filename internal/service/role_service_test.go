@@ -27,9 +27,7 @@ func TestAssignRole_Success(t *testing.T) {
 	svc, roleRepo, _, _, userRepo := newRoleService(t)
 	userRepo.On("FindByID", mock.Anything, uint64(1)).Return(&model.User{ID: 1, Username: "test", RoleID: 0}, nil)
 	roleRepo.On("FindByID", mock.Anything, uint64(2)).Return(&model.Role{ID: 2, Code: "admin", Name: "管理员"}, nil)
-	userRepo.On("Update", mock.Anything, mock.MatchedBy(func(u *model.User) bool {
-		return u.ID == 1 && u.RoleID == 2
-	})).Return(nil)
+	userRepo.On("UpdateRoleID", mock.Anything, uint64(1), uint64(2)).Return(nil)
 
 	err := svc.AssignRole(context.Background(), 1, &AssignRoleRequest{RoleID: 2})
 	if err != nil {

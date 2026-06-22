@@ -99,7 +99,7 @@ func (s *roleService) AssignRole(ctx context.Context, userID uint64, req *Assign
 		return err
 	}
 
-	return s.userRepo.Update(ctx, &model.User{ID: userID, RoleID: req.RoleID})
+	return s.userRepo.UpdateRoleID(ctx, userID, req.RoleID)
 }
 
 func (s *roleService) ListRoles(ctx context.Context) ([]model.Role, error) {

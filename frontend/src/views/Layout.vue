@@ -51,7 +51,7 @@ function handleLogout() {
           </a-menu-item>
           <a-menu-item
             v-for="item in userStore.sidebarMenus"
-            :key="'/' + item.path.replace('/system/', 'system/')"
+            :key="item.path"
           >
             {{ item.name }}
           </a-menu-item>

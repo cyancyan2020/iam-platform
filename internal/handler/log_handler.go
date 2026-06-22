@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -26,7 +27,11 @@ func (h *LogHandler) Query(c *gin.Context) {
 	result, err := h.logService.Query(c.Request.Context(), &query)
 	if err != nil {
 		log.Printf("日志查询 error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		if errors.Is(err, service.ErrInvalidDateFormat) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		}
 		return
 	}
 

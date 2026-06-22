@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -74,8 +75,21 @@ func main() {
 	logHandler := handler.NewLogHandler(logSvc)
 
 	// 操作日志 channel 和 consumer
-	logChan := make(chan model.OperationLog, 1000)
-	go middleware.LogConsumer(logRepo, logChan)
+	logChanSize := viper.GetInt("log.channel_size")
+	if logChanSize <= 0 {
+		logChanSize = 1000
+	}
+	if logChanSize > 100000 {
+		logChanSize = 100000
+	}
+	logChan := make(chan model.OperationLog, logChanSize)
+
+	var logWg sync.WaitGroup
+	logWg.Add(1)
+	go func() {
+		defer logWg.Done()
+		middleware.LogConsumer(logRepo, logChan)
+	}()
 
 	gin.SetMode(viper.GetString("server.mode"))
 
@@ -165,6 +179,7 @@ func main() {
 	}
 
 	close(logChan)
+	logWg.Wait()
 	sqlDB.Close()
 	rdb.Close()
 	fmt.Println("server exited")

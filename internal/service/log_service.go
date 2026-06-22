@@ -2,11 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/cyancyan2020/iam-platform/internal/model"
 	"github.com/cyancyan2020/iam-platform/internal/repository"
 )
+
+// ErrInvalidDateFormat 日期格式错误
+var ErrInvalidDateFormat = errors.New("日期格式错误，示例: 2026-01-01 08:00:00")
 
 type LogQuery struct {
 	Start string `form:"start"` // "2006-01-02 15:04:05"
@@ -42,11 +47,18 @@ func (s *logService) Query(ctx context.Context, query *LogQuery) (*LogListResult
 	offset := (query.Page - 1) * query.Size
 
 	var start, end time.Time
+	var err error
 	if query.Start != "" {
-		start, _ = time.Parse("2006-01-02 15:04:05", query.Start)
+		start, err = time.Parse("2006-01-02 15:04:05", query.Start)
+		if err != nil {
+			return nil, fmt.Errorf("%w: 开始日期 %s", ErrInvalidDateFormat, query.Start)
+		}
 	}
 	if query.End != "" {
-		end, _ = time.Parse("2006-01-02 15:04:05", query.End)
+		end, err = time.Parse("2006-01-02 15:04:05", query.End)
+		if err != nil {
+			return nil, fmt.Errorf("%w: 结束日期 %s", ErrInvalidDateFormat, query.End)
+		}
 	}
 
 	logs, total, err := s.logRepo.Query(ctx, start, end, offset, query.Size)

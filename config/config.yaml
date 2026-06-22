@@ -12,6 +12,9 @@ redis:
   password: ""
   db: 0
 
+log:
+  channel_size: 1000
+
 jwt:
   secret: "iam-platform-secret-key-change-in-production"
   expire_hours: 24

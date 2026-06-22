@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -13,6 +14,12 @@ import (
 // OperationLogMiddleware 操作日志中间件（异步写入）
 func OperationLogMiddleware(logChan chan<- model.OperationLog) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 跳过健康检查探活
+		if c.Request.URL.Path == "/health" {
+			c.Next()
+			return
+		}
+
 		start := time.Now()
 		c.Next()
 
@@ -47,10 +54,10 @@ func OperationLogMiddleware(logChan chan<- model.OperationLog) gin.HandlerFunc {
 	}
 }
 
-// LogConsumer 后台消费日志 channel，批量写入 MySQL
+// LogConsumer 后台消费日志 channel，写入 MySQL
 func LogConsumer(logRepo repository.OperationLogRepository, logChan <-chan model.OperationLog) {
 	for entry := range logChan {
-		if err := logRepo.Create(nil, &entry); err != nil {
+		if err := logRepo.Create(context.Background(), &entry); err != nil {
 			log.Printf("写入操作日志失败: %v", err)
 		}
 	}

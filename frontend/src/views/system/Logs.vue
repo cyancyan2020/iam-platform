@@ -127,7 +127,7 @@ const columns = [
       <a-range-picker v-model="dateRange" show-time format="YYYY-MM-DD HH:mm:ss" style="width: 380px" />
       <a-button type="primary" @click="handleSearch">查询</a-button>
       <a-button @click="handleReset">重置</a-button>
-      <a-button @click="handleExport" style="margin-left: auto">导出 CSV</a-button>
+      <a-button @click="handleExport" style="margin-left: auto">导出当前页 CSV</a-button>
     </div>
 
     <!-- 表格 -->

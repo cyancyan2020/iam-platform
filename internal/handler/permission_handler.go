@@ -9,15 +9,15 @@ import (
 )
 
 type PermissionHandler struct {
-	roleService service.RoleService
+	svc service.RoleService
 }
 
-func NewPermissionHandler(roleService service.RoleService) *PermissionHandler {
-	return &PermissionHandler{roleService: roleService}
+func NewPermissionHandler(svc service.RoleService) *PermissionHandler {
+	return &PermissionHandler{svc: svc}
 }
 
 func (h *PermissionHandler) ListPermissions(c *gin.Context) {
-	perms, err := h.roleService.ListPermissions(c.Request.Context())
+	perms, err := h.svc.ListPermissions(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
@@ -32,7 +32,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 
-	perm, err := h.roleService.CreatePermission(c.Request.Context(), &req)
+	perm, err := h.svc.CreatePermission(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
@@ -54,7 +54,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 		return
 	}
 
-	if err := h.roleService.UpdatePermission(c.Request.Context(), id, &req); err != nil {
+	if err := h.svc.UpdatePermission(c.Request.Context(), id, &req); err != nil {
 		if err == service.ErrPermissionNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
@@ -73,7 +73,7 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 		return
 	}
 
-	if err := h.roleService.DeletePermission(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeletePermission(c.Request.Context(), id); err != nil {
 		if err == service.ErrPermissionNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return

@@ -28,7 +28,7 @@ func PermissionCheck(permRepo repository.PermissionRepository) gin.HandlerFunc {
 			return
 		}
 
-		hasPerm, err := permRepo.HasPermission(c.Request.Context(), claims.UserID, c.Request.URL.Path, c.Request.Method)
+		hasPerm, err := permRepo.HasPermission(c.Request.Context(), claims.UserID, c.FullPath(), c.Request.Method)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"code":    500,

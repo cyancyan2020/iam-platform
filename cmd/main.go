@@ -13,6 +13,7 @@ import (
 
 	"github.com/cyancyan2020/iam-platform/internal/handler"
 	"github.com/cyancyan2020/iam-platform/internal/middleware"
+	"github.com/cyancyan2020/iam-platform/internal/model"
 	"github.com/cyancyan2020/iam-platform/internal/repository"
 	"github.com/cyancyan2020/iam-platform/internal/service"
 	"github.com/gin-gonic/gin"
@@ -61,13 +62,20 @@ func main() {
 	permRepo := repository.NewPermissionRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	rolePermRepo := repository.NewRolePermissionRepository(db)
+	logRepo := repository.NewOperationLogRepository(db)
 
 	userSvc := service.NewUserService(userRepo, tokenVersionRepo, roleRepo, jwtSecret, jwtExpireHours)
 	roleSvc := service.NewRoleService(roleRepo, permRepo, rolePermRepo, userRepo)
+	logSvc := service.NewLogService(logRepo)
 
 	userHandler := handler.NewUserHandler(userSvc)
 	roleHandler := handler.NewRoleHandler(roleSvc)
 	permHandler := handler.NewPermissionHandler(roleSvc)
+	logHandler := handler.NewLogHandler(logSvc)
+
+	// 操作日志 channel 和 consumer
+	logChan := make(chan model.OperationLog, 1000)
+	go middleware.LogConsumer(logRepo, logChan)
 
 	gin.SetMode(viper.GetString("server.mode"))
 
@@ -75,6 +83,7 @@ func main() {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.OperationLogMiddleware(logChan))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -117,6 +126,9 @@ func main() {
 			protected.GET("/roles/:id/permissions", roleHandler.GetRolePermissions)
 			protected.POST("/roles/:id/permissions", roleHandler.SetRolePermissions)
 
+			// 操作日志
+			protected.GET("/logs", logHandler.Query)
+
 			// 权限管理
 			protected.GET("/permissions", permHandler.ListPermissions)
 			protected.POST("/permissions", permHandler.CreatePermission)
@@ -152,6 +164,7 @@ func main() {
 		log.Fatalf("服务关闭失败: %v", err)
 	}
 
+	close(logChan)
 	sqlDB.Close()
 	rdb.Close()
 	fmt.Println("server exited")

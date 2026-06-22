@@ -37,6 +37,11 @@ const router = createRouter({
           component: () => import('@/views/system/Permissions.vue'),
         },
         {
+          path: 'system/logs',
+          name: 'Logs',
+          component: () => import('@/views/system/Logs.vue'),
+        },
+        {
           path: ':pathMatch(.*)*',
           redirect: '/dashboard',
         },

@@ -20,7 +20,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
+			"message": "请求参数错误",
 		})
 		return
 	}
@@ -35,7 +35,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "注册失败: " + err.Error(),
+			"message": "服务器内部错误",
 		})
 		return
 	}

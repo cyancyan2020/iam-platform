@@ -78,3 +78,18 @@ func (h *UserHandler) Login(c *gin.Context) {
 		"data":    resp,
 	})
 }
+
+func (h *UserHandler) Profile(c *gin.Context) {
+	claims, ok := c.Get("user")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "服务器内部错误",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": claims,
+	})
+}

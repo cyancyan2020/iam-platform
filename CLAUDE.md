@@ -4,7 +4,7 @@
 - **开发哲学**：采用 “Test-Driven 思维” 与 “Makefile 驱动”。所有核心逻辑必须附带单元测试，测试即文档。
 - **必备工具链**：`make` 命令必须包含 `make test`（运行单测）、`make build`（编译）、`make lint`（代码检查）、`make migrate-up`（数据库迁移）。
 - **Mock 策略**：Repository 层和第三方 Client 必须定义 Interface，使用 `mockery` 生成 Mock 对象，Service 层单元测试必须基于 Mock，不依赖真实 MySQL。
-- **CI/CD 就绪**：代码必须支持通过环境变量（`ENV`）覆盖 `config.yaml`，确保后续部署到 Linux 服务器无障碍。
+- **CI/CD 就绪**：代码必须支持通过环境变量覆盖 `config.yaml`（`viper.AutomaticEnv()` + `viper.SetEnvPrefix`），确保后续部署到 Linux 服务器无障碍。
 
 ## 2. 后端技术栈 (Go)
 - **语言版本**：Go 1.22+。
@@ -12,8 +12,8 @@
 - **数据库 (MySQL)**：GORM (使用 `gorm.io/driver/mysql`)。**禁止**使用 `gorm.AutoMigrate` 做生产迁移，统一使用 `golang-migrate` 维护 `db/migrations` 文件夹下的 SQL 脚本。
 - **缓存**：Redis (使用 `go-redis/redis`)，用于存储 JWT 版本号、限流计数、验证码。
 - **配置**：Viper (支持 YAML + 环境变量覆盖)。
-- **日志**：Zap (结构化 JSON 日志，必须包含 `trace_id`)。
-- **依赖注入**：推荐使用 `google/wire` 生成依赖注入代码，让 AI 生成 `wire.go` 文件。
+- **日志**：规划使用 Zap 输出结构化 JSON 日志并包含 `trace_id`（当前为 `log.Printf`，待 Phase 11 实施）。
+- **依赖注入**：规划使用 `google/wire` 生成依赖注入代码（当前手动在 `cmd/main.go` 中组装，待 Phase 11 实施）。
 
 ## 3. 前端技术栈 (Web UI)
 - **框架**：Vue 3 + TypeScript + Vite。
@@ -25,6 +25,7 @@
 - 字符集统一 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`。
 - 表名采用单数形式（如 `user`, `role`, `permission`）。
 - 必备审计字段：`created_at` (DATETIME), `updated_at` (DATETIME), `deleted_at` (DATETIME NULL, 软删除)。
+- 禁止使用`select *`等慢sql语句。
 
 ## 5. 代码分层架构 (必须严格遵循)
 - **Handler (Controller)**：只负责绑定参数（ShouldBindJSON），调用 Service，返回 HTTP 状态码。**不包含**业务逻辑。
@@ -44,12 +45,11 @@
 - **Service 业务逻辑**：使用 `testify/assert` 和 `mockery` 生成的 Mock 对象。至少包含“正常流程”和“异常流程”（如数据库报错、用户不存在）两个测试用例。
 - **Middleware 中间件**：使用 `net/http/httptest` 模拟请求测试拦截逻辑。
 
-## 8. 交付规则 (防止一次性输出)
-**极其重要**：严禁一次性生成整个项目。必须采用“分阶段迭代”模式。
-- **Phase 1**：项目骨架（Makefile, config, main.go, 健康检查） + 数据库迁移脚本（初始化 `user` 表）。
-- **Phase 2**：用户注册与密码加密（含 Bcrypt 单元测试）。
-- **Phase 3**：JWT 登录与中间件（含 JWT 解析测试）。
-- **Phase 4**：多端登录互踢（Redis 版本号逻辑）。
-- **Phase 5**：RBAC 权限管理（Casbin 或自定义策略）。
+## 8. 交付规则
+**严禁一次性生成整个项目或整个 Phase。** 必须将复杂任务拆分为可独立交付的小步，每步完成后停下来审视代码完整性。当前项目阶段划分见 `docs/ROADMAP.md`。
 
-每完成一个 Phase，必须停下来重新审视这个 Phase 编写的代码，不可盲目自信。
+每完成一个步骤，必须：
+1. 运行 `make test` 确认历史用例零回归。
+2. 运行 `go build` 确认编译无错误。
+3. 确认变更范围内的 `_test.go` 已同步生成且覆盖正常/异常路径。
+4. 不可盲目自信，主动提出发现的问题。

@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/cyancyan2020/iam-platform/internal/handler"
 	"github.com/cyancyan2020/iam-platform/internal/middleware"
@@ -24,6 +29,8 @@ func main() {
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("读取配置文件失败: %v", err)
 	}
+
+	viper.AutomaticEnv()
 
 	db, err := gorm.Open(mysql.Open(viper.GetString("database.dsn")), &gorm.Config{})
 	if err != nil {
@@ -58,6 +65,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(middleware.CORSMiddleware())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -75,27 +83,35 @@ func main() {
 		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
 		protected.Use(middleware.PermissionCheck(permRepo))
 		{
-			protected.GET("/profile", func(c *gin.Context) {
-				claims, ok := c.Get("user")
-				if !ok {
-					c.JSON(http.StatusInternalServerError, gin.H{
-						"code":    500,
-						"message": "服务器内部错误",
-					})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{
-					"code": 200,
-					"data": claims,
-				})
-			})
+			protected.GET("/profile", userHandler.Profile)
 		}
 	}
 
 	port := viper.GetString("server.port")
-	fmt.Printf("IAM Platform 启动中, 监听端口: %s\n", port)
 
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("服务启动失败: %v", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		fmt.Printf("IAM Platform 启动中, 监听端口: %s\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("服务启动失败: %v", err)
+		}
+	}()
+
+	<-quit
+	fmt.Println("server shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("服务关闭失败: %v", err)
+	}
+	fmt.Println("server exited")
 }

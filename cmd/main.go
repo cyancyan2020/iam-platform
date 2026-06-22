@@ -110,6 +110,7 @@ func main() {
 			protected.DELETE("/roles/:id", roleHandler.DeleteRole)
 
 			// 角色权限分配
+			protected.GET("/roles/:id/permissions", roleHandler.GetRolePermissions)
 			protected.POST("/roles/:id/permissions", roleHandler.SetRolePermissions)
 
 			// 权限管理

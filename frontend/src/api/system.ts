@@ -62,6 +62,9 @@ export const updateRoleApi = (id: number, data: { code: string; name: string }) 
 export const deleteRoleApi = (id: number) =>
   api.delete<ApiResponse>(`/roles/${id}`)
 
+export const getRolePermissionsApi = (roleId: number) =>
+  api.get<ApiResponse<number[]>>(`/roles/${roleId}/permissions`)
+
 export const setRolePermissionsApi = (roleId: number, permissionIds: number[]) =>
   api.post<ApiResponse>(`/roles/${roleId}/permissions`, { permission_ids: permissionIds })
 

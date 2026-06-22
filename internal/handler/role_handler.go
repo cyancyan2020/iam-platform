@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -143,4 +144,25 @@ func (h *RoleHandler) SetRolePermissions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "权限分配成功"})
+}
+
+func (h *RoleHandler) GetRolePermissions(c *gin.Context) {
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的角色 ID"})
+		return
+	}
+
+	permIDs, err := h.roleService.GetRolePermissions(c.Request.Context(), roleID)
+	if err != nil {
+		if err == service.ErrRoleNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			return
+		}
+		log.Printf("GetRolePermissions roleID=%d error: %v", roleID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": permIDs})
 }

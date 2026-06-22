@@ -58,6 +58,7 @@ type RoleService interface {
 	UpdatePermission(ctx context.Context, id uint64, req *UpdatePermissionRequest) error
 	DeletePermission(ctx context.Context, id uint64) error
 	SetRolePermissions(ctx context.Context, roleID uint64, req *SetRolePermissionsRequest) error
+	GetRolePermissions(ctx context.Context, roleID uint64) ([]uint64, error)
 }
 
 type roleService struct {
@@ -207,4 +208,26 @@ func (s *roleService) SetRolePermissions(ctx context.Context, roleID uint64, req
 		return err
 	}
 	return s.rolePermRepo.BatchReplace(ctx, roleID, req.PermissionIDs)
+}
+
+func (s *roleService) GetRolePermissions(ctx context.Context, roleID uint64) ([]uint64, error) {
+	// 仅校验角色是否存在
+	_, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, err
+	}
+
+	rps, err := s.rolePermRepo.FindByRoleID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]uint64, 0, len(rps))
+	for _, rp := range rps {
+		ids = append(ids, rp.PermissionID)
+	}
+	return ids, nil
 }

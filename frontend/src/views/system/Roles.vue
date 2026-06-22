@@ -2,7 +2,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import {
   getRoleListApi, createRoleApi, updateRoleApi, deleteRoleApi,
-  getPermissionListApi, setRolePermissionsApi,
+  getPermissionListApi, getRolePermissionsApi, setRolePermissionsApi,
   type RoleItem, type PermissionItem,
 } from '@/api/system'
 import { Message } from '@arco-design/web-vue'
@@ -21,6 +21,7 @@ const form = reactive({ code: '', name: '' })
 
 // 权限分配抽屉
 const drawerVisible = ref(false)
+const drawerLoading = ref(false)
 const drawerRoleId = ref(0)
 const drawerRoleName = ref('')
 const checkedPermIds = ref<number[]>([])
@@ -90,12 +91,19 @@ async function handleDelete(row: RoleItem) {
 }
 
 // ——— 权限抽屉 ———
-function openPermissionDrawer(row: RoleItem) {
+async function openPermissionDrawer(row: RoleItem) {
   drawerRoleId.value = row.id
   drawerRoleName.value = row.name
-  // TODO: 从后端获取角色当前的权限列表
-  checkedPermIds.value = []
   drawerVisible.value = true
+  drawerLoading.value = true
+  try {
+    const res = await getRolePermissionsApi(row.id)
+    checkedPermIds.value = res.data.data || []
+  } catch {
+    checkedPermIds.value = []
+  } finally {
+    drawerLoading.value = false
+  }
 }
 
 async function handleSavePermissions() {
@@ -160,7 +168,7 @@ const columns = [
 
     <!-- 权限分配抽屉 -->
     <a-drawer v-model:visible="drawerVisible" :title="`分配权限 - ${drawerRoleName}`" :width="480" :footer="false">
-      <div>
+      <a-spin :loading="drawerLoading">
         <a-checkbox-group v-model="checkedPermIds" direction="vertical">
           <template v-for="p in buildPermTree()" :key="p.id">
             <div style="font-weight: 600; margin: 12px 0 4px">{{ p.name }}</div>
@@ -169,7 +177,7 @@ const columns = [
             </a-checkbox>
           </template>
         </a-checkbox-group>
-      </div>
+      </a-spin>
       <div style="margin-top: 24px">
         <a-button type="primary" long @click="handleSavePermissions">保存权限</a-button>
       </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute } from 'vue-router'
 import { IconApps, IconExport } from '@arco-design/web-vue/es/icon'
@@ -7,10 +8,10 @@ const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 
-const menuItems = userStore.sidebarMenus.map(item => ({
-  key: item.path.replace('/system/', '/system/'),
-  label: item.name,
-}))
+onMounted(() => {
+  userStore.fetchProfile()
+  userStore.fetchPermissions()
+})
 
 function handleMenuClick(key: string) {
   router.push(key)

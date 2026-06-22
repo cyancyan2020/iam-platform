@@ -31,10 +31,14 @@ CREATE TABLE IF NOT EXISTS `role_permission` (
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted_at` DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
+    UNIQUE INDEX `idx_role_perm` (`role_id`, `permission_id`),
+    INDEX `idx_role_id` (`role_id`),
     INDEX `idx_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `user` ADD COLUMN `role_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER `nickname`;
+ALTER TABLE `user`
+    ADD COLUMN `role_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER `nickname`,
+    ADD INDEX `idx_role_id` (`role_id`);
 
 INSERT INTO `role` (`code`, `name`) VALUES ('admin', '管理员'), ('user', '普通用户');
 

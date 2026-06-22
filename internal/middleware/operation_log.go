@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/cyancyan2020/iam-platform/internal/model"
@@ -12,6 +13,8 @@ import (
 
 	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 )
+
+var droppedLogs atomic.Uint64
 
 // OperationLogMiddleware 操作日志中间件（异步写入）
 func OperationLogMiddleware(logChan chan<- model.OperationLog) gin.HandlerFunc {
@@ -51,7 +54,10 @@ func OperationLogMiddleware(logChan chan<- model.OperationLog) gin.HandlerFunc {
 		select {
 		case logChan <- entry:
 		default:
-			// channel 满时丢弃，避免阻塞请求
+			n := droppedLogs.Add(1)
+			if n%100 == 1 {
+				pkgl.Warn("操作日志channel已满丢弃", zap.Uint64("total", n))
+			}
 		}
 	}
 }

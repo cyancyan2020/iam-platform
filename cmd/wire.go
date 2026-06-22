@@ -29,18 +29,18 @@ type logChanSize int
 
 // ---------- Provider 函数 ----------
 
-func provideViper() *viper.Viper {
+func provideViper() (*viper.Viper, error) {
 	v := viper.New()
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath("./config")
 	if err := v.ReadInConfig(); err != nil {
-		panic("读取配置文件失败: " + err.Error())
+		return nil, err
 	}
 	v.SetEnvPrefix("IAM")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
-	return v
+	return v, nil
 }
 
 func provideGormDB(v *viper.Viper) (*gorm.DB, error) {

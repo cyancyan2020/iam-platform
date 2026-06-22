@@ -17,6 +17,7 @@ import (
 
 func main() {
 	// Wire 依赖注入：自动装配所有组件
+	// 注：Logger 尚未初始化，pkgl.Fatal 此时回退到 log.Printf + os.Exit(1)
 	comp, err := InitComponents()
 	if err != nil {
 		pkgl.Fatal("组件初始化失败", zap.Error(err))

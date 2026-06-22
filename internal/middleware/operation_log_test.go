@@ -76,44 +76,25 @@ func TestOperationLogMiddleware_SkipsHealth(t *testing.T) {
 
 // TestOperationLogMiddleware_ChannelFullDoesNotBlock channel 满时不阻塞
 func TestOperationLogMiddleware_ChannelFullDoesNotBlock(t *testing.T) {
-	logChan := make(chan model.OperationLog) // 无缓冲
-	// 先不启动 consumer，让 channel 满
+	logChan := make(chan model.OperationLog, 1) // 缓冲 1，第二条即满
 	router := setupLogTestRouter(logChan)
 
-	// 第一个请求写入 channel（无缓冲，阻塞直到被读取）
-	// 用 goroutine 发送第一个请求，让它阻塞在 channel 写入
-	done := make(chan bool, 1)
-	go func() {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-		done <- true
-	}()
-
-	// 让第一个 goroutine 的 entry 进入 channel
-	<-logChan
-
-	// 现在 channel 已空，发第二个请求应从 channel 读取再阻塞
-	go func() {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-		done <- true
-	}()
-
-	// 发第三个请求 — channel 应该满，default 丢弃，不阻塞
-	req3 := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-	w3 := httptest.NewRecorder()
-	router.ServeHTTP(w3, req3)
-
-	if w3.Code != http.StatusOK {
-		t.Fatalf("channel 满时请求不应被阻塞, 期望 200, 实际: %d", w3.Code)
+	// 第一个请求：channel 未满，正常写入
+	req1 := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	w1 := httptest.NewRecorder()
+	router.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("期望 200, 实际: %d", w1.Code)
 	}
 
-	// 清理
-	<-logChan
-	<-done
-	<-done
+	// 第二个请求：channel 已满，default 丢弃，不阻塞
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Fatalf("channel 满时请求不应被阻塞, 期望 200, 实际: %d", w2.Code)
+	}
 }
 
 // TestOperationLogMiddleware_StatusCode 验证状态码记录

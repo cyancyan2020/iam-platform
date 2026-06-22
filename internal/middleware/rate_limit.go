@@ -9,6 +9,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// incrWithExpire Lua 脚本：原子执行 INCR，首次时设置 TTL
+var incrWithExpire = redis.NewScript(`
+	local count = redis.call("INCR", KEYS[1])
+	if count == 1 then
+		redis.call("EXPIRE", KEYS[1], ARGV[1])
+	end
+	return count
+`)
+
 // RateLimiter 限流接口
 type RateLimiter interface {
 	Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
@@ -18,19 +27,17 @@ type redisRateLimiter struct {
 	client *redis.Client
 }
 
-// NewRedisRateLimiter 基于 Redis 的滑动窗口限流器
+// NewRedisRateLimiter 基于 Redis 的固定窗口限流器
+// 注：当前为固定窗口，在窗口边界附近的极短时间内可通过最多 2×limit 次；
+// 严苛场景可改用 ZSET 滑动窗口，当前实现满足登录保护需求。
 func NewRedisRateLimiter(client *redis.Client) RateLimiter {
 	return &redisRateLimiter{client: client}
 }
 
 func (r *redisRateLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
-	count, err := r.client.Incr(ctx, key).Result()
+	count, err := incrWithExpire.Run(ctx, r.client, []string{key}, int(window.Seconds())).Int64()
 	if err != nil {
 		return false, err
-	}
-	// 首次请求设置过期时间
-	if count == 1 {
-		r.client.Expire(ctx, key, window)
 	}
 	return count <= int64(limit), nil
 }

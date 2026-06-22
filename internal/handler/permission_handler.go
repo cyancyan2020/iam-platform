@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type PermissionHandler struct {
@@ -19,6 +21,7 @@ func NewPermissionHandler(svc service.RoleService) *PermissionHandler {
 func (h *PermissionHandler) ListPermissions(c *gin.Context) {
 	perms, err := h.svc.ListPermissions(c.Request.Context())
 	if err != nil {
+		pkgl.Error("ListPermissions", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -34,6 +37,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 
 	perm, err := h.svc.CreatePermission(c.Request.Context(), &req)
 	if err != nil {
+		pkgl.Error("CreatePermission", zap.String("path", req.Path), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -59,6 +63,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		pkgl.Error("UpdatePermission", zap.Uint64("id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -78,6 +83,7 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
+		pkgl.Error("DeletePermission", zap.Uint64("id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}

@@ -1,6 +1,9 @@
 package log
 
 import (
+	"log"
+	"os"
+
 	"go.uber.org/zap"
 )
 
@@ -26,17 +29,38 @@ func Sync() {
 	}
 }
 
+// Warn 输出 Warn 级别日志
+func Warn(msg string, fields ...zap.Field) {
+	if Logger != nil {
+		Logger.Warn(msg, fields...)
+	} else {
+		log.Printf("[WARN] %s %v", msg, fields)
+	}
+}
+
 // Info 输出 Info 级别日志
 func Info(msg string, fields ...zap.Field) {
-	Logger.Info(msg, fields...)
+	if Logger != nil {
+		Logger.Info(msg, fields...)
+	} else {
+		log.Printf("[INFO] %s %v", msg, fields)
+	}
 }
 
 // Error 输出 Error 级别日志
 func Error(msg string, fields ...zap.Field) {
-	Logger.Error(msg, fields...)
+	if Logger != nil {
+		Logger.Error(msg, fields...)
+	} else {
+		log.Printf("[ERROR] %s %v", msg, fields)
+	}
 }
 
 // Fatal 输出 Fatal 级别日志并退出
 func Fatal(msg string, fields ...zap.Field) {
-	Logger.Fatal(msg, fields...)
+	if Logger != nil {
+		Logger.Fatal(msg, fields...)
+	}
+	log.Printf("[FATAL] %s %v", msg, fields)
+	os.Exit(1)
 }

@@ -91,6 +91,7 @@ func main() {
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
 		protected.Use(middleware.PermissionCheck(permRepo))
+		protected.Use(middleware.DataScopeMiddleware(userRepo, roleRepo))
 		{
 			protected.GET("/profile", userHandler.Profile)
 

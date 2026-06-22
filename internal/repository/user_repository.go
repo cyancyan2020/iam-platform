@@ -54,6 +54,12 @@ func (r *userRepository) List(ctx context.Context, keyword string, offset, limit
 		like := "%" + keyword + "%"
 		query = query.Where("username LIKE ? OR nickname LIKE ?", like, like)
 	}
+
+	// 应用数据权限过滤
+	if scope, ok := GetDataScope(ctx); ok {
+		query = query.Scopes(ApplyScope(scope))
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

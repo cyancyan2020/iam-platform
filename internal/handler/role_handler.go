@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type RoleHandler struct {
@@ -37,7 +38,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 		case service.ErrRoleNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		default:
-			log.Printf("AssignRole userID=%d roleID=%d error: %v", userID, req.RoleID, err)
+			pkgl.Error("AssignRole", zap.Uint64("userID", userID), zap.Uint64("roleID", req.RoleID), zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		}
 		return
@@ -49,7 +50,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 func (h *RoleHandler) ListRoles(c *gin.Context) {
 	roles, err := h.roleService.ListRoles(c.Request.Context())
 	if err != nil {
-		log.Printf("ListRoles error: %v", err)
+		pkgl.Error("ListRoles", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -69,7 +70,7 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
 			return
 		}
-		log.Printf("CreateRole code=%s error: %v", req.Code, err)
+		pkgl.Error("CreateRole", zap.String("code", req.Code), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -97,7 +98,7 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 		case service.ErrRoleCodeAlreadyExists:
 			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
 		default:
-			log.Printf("UpdateRole id=%d error: %v", id, err)
+			pkgl.Error("UpdateRole", zap.Uint64("id", id), zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		}
 		return
@@ -118,7 +119,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
-		log.Printf("DeleteRole id=%d error: %v", id, err)
+		pkgl.Error("DeleteRole", zap.Uint64("id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -144,7 +145,7 @@ func (h *RoleHandler) SetRolePermissions(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
-		log.Printf("SetRolePermissions roleID=%d error: %v", roleID, err)
+		pkgl.Error("SetRolePermissions", zap.Uint64("roleID", roleID), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}
@@ -165,7 +166,7 @@ func (h *RoleHandler) GetRolePermissions(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 			return
 		}
-		log.Printf("GetRolePermissions roleID=%d error: %v", roleID, err)
+		pkgl.Error("GetRolePermissions", zap.Uint64("roleID", roleID), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
 		return
 	}

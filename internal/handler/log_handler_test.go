@@ -5,12 +5,20 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
 )
+
+func TestMain(m *testing.M) {
+	pkgl.Init("debug")
+	code := m.Run()
+	os.Exit(code)
+}
 
 // ——— mock LogService ———
 

@@ -2,11 +2,12 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type LogHandler struct {
@@ -26,7 +27,7 @@ func (h *LogHandler) Query(c *gin.Context) {
 
 	result, err := h.logService.Query(c.Request.Context(), &query)
 	if err != nil {
-		log.Printf("日志查询 error: %v", err)
+		pkgl.Error("LogQuery", zap.Error(err))
 		if errors.Is(err, service.ErrInvalidDateFormat) {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		} else {

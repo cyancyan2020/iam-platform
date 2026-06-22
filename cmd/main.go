@@ -2,102 +2,46 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/cyancyan2020/iam-platform/internal/handler"
 	"github.com/cyancyan2020/iam-platform/internal/middleware"
-	"github.com/cyancyan2020/iam-platform/internal/model"
-	"github.com/cyancyan2020/iam-platform/internal/repository"
-	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"go.uber.org/zap"
 )
 
 func main() {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./config")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("读取配置文件失败: %v", err)
-	}
-
-	viper.SetEnvPrefix("IAM")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
-
-	db, err := gorm.Open(mysql.Open(viper.GetString("database.dsn")), &gorm.Config{})
+	// Wire 依赖注入：自动装配所有组件
+	comp, err := InitComponents()
 	if err != nil {
-		log.Fatalf("数据库连接失败: %v", err)
+		pkgl.Fatal("组件初始化失败", zap.Error(err))
 	}
 
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("获取数据库实例失败: %v", err)
-	}
-	sqlDB.SetMaxOpenConns(viper.GetInt("database.max_open_conns"))
-	sqlDB.SetMaxIdleConns(viper.GetInt("database.max_idle_conns"))
+	// 初始化 Zap 日志
+	pkgl.Init(string(comp.GinMode))
+	defer pkgl.Sync()
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     viper.GetString("redis.addr"),
-		Password: viper.GetString("redis.password"),
-		DB:       viper.GetInt("redis.db"),
-	})
-
-	jwtSecret := viper.GetString("jwt.secret")
-	jwtExpireHours := viper.GetInt("jwt.expire_hours")
-
-	userRepo := repository.NewUserRepository(db)
-	tokenVersionRepo := repository.NewTokenVersionRepository(rdb)
-	permRepo := repository.NewPermissionRepository(db)
-	roleRepo := repository.NewRoleRepository(db)
-	rolePermRepo := repository.NewRolePermissionRepository(db)
-	logRepo := repository.NewOperationLogRepository(db)
-
-	userSvc := service.NewUserService(userRepo, tokenVersionRepo, roleRepo, jwtSecret, jwtExpireHours)
-	roleSvc := service.NewRoleService(roleRepo, permRepo, rolePermRepo, userRepo)
-	logSvc := service.NewLogService(logRepo)
-
-	userHandler := handler.NewUserHandler(userSvc)
-	roleHandler := handler.NewRoleHandler(roleSvc)
-	permHandler := handler.NewPermissionHandler(roleSvc)
-	logHandler := handler.NewLogHandler(logSvc)
-
-	// 操作日志 channel 和 consumer
-	logChanSize := viper.GetInt("log.channel_size")
-	if logChanSize <= 0 {
-		logChanSize = 1000
-	}
-	if logChanSize > 100000 {
-		logChanSize = 100000
-	}
-	logChan := make(chan model.OperationLog, logChanSize)
-
+	// 操作日志 consumer
 	var logWg sync.WaitGroup
 	logWg.Add(1)
 	go func() {
 		defer logWg.Done()
-		middleware.LogConsumer(logRepo, logChan)
+		middleware.LogConsumer(comp.LogRepo, comp.LogChan)
 	}()
 
-	gin.SetMode(viper.GetString("server.mode"))
+	gin.SetMode(string(comp.GinMode))
 
 	r := gin.New()
-	r.Use(gin.Logger())
+	r.Use(middleware.TraceIDMiddleware())
+	r.Use(middleware.ZapLoggerMiddleware())
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORSMiddleware())
-	r.Use(middleware.OperationLogMiddleware(logChan))
+	r.Use(middleware.OperationLogMiddleware(comp.LogChan))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -108,79 +52,69 @@ func main() {
 
 	api := r.Group("/api/v1")
 	{
-		api.POST("/users/register", userHandler.Register)
-		api.POST("/users/login", userHandler.Login)
+		api.POST("/users/register", comp.UserHandler.Register)
+		api.POST("/users/login", middleware.LoginRateLimitMiddleware(comp.RateLimiter, 5, time.Minute), comp.UserHandler.Login)
 
 		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware(jwtSecret, tokenVersionRepo))
-		protected.Use(middleware.PermissionCheck(permRepo))
+		protected.Use(middleware.AuthMiddleware(string(comp.JWTSecret), comp.TokenVersionRepo))
+		protected.Use(middleware.PermissionCheck(comp.PermRepo))
 		{
-			protected.GET("/profile", userHandler.Profile)
+			protected.GET("/profile", comp.UserHandler.Profile)
 
-			// 用户管理（GET 列表需要数据权限过滤）
 			scope := protected.Group("")
-			scope.Use(middleware.DataScopeMiddleware(userRepo, roleRepo))
+			scope.Use(middleware.DataScopeMiddleware(comp.UserRepo, comp.RoleRepo))
 			{
-				scope.GET("/users", userHandler.ListUsers)
+				scope.GET("/users", comp.UserHandler.ListUsers)
 			}
-			protected.POST("/users", userHandler.CreateUser)
-			protected.PUT("/users/:id", userHandler.UpdateUser)
-			protected.DELETE("/users/:id", userHandler.DeleteUser)
+			protected.POST("/users", comp.UserHandler.CreateUser)
+			protected.PUT("/users/:id", comp.UserHandler.UpdateUser)
+			protected.DELETE("/users/:id", comp.UserHandler.DeleteUser)
 
-			// 用户角色分配
-			protected.POST("/users/:id/role", roleHandler.AssignRole)
+			protected.POST("/users/:id/role", comp.RoleHandler.AssignRole)
 
-			// 角色管理
-			protected.GET("/roles", roleHandler.ListRoles)
-			protected.POST("/roles", roleHandler.CreateRole)
-			protected.PUT("/roles/:id", roleHandler.UpdateRole)
-			protected.DELETE("/roles/:id", roleHandler.DeleteRole)
+			protected.GET("/roles", comp.RoleHandler.ListRoles)
+			protected.POST("/roles", comp.RoleHandler.CreateRole)
+			protected.PUT("/roles/:id", comp.RoleHandler.UpdateRole)
+			protected.DELETE("/roles/:id", comp.RoleHandler.DeleteRole)
 
-			// 角色权限分配
-			protected.GET("/roles/:id/permissions", roleHandler.GetRolePermissions)
-			protected.POST("/roles/:id/permissions", roleHandler.SetRolePermissions)
+			protected.GET("/roles/:id/permissions", comp.RoleHandler.GetRolePermissions)
+			protected.POST("/roles/:id/permissions", comp.RoleHandler.SetRolePermissions)
 
-			// 操作日志
-			protected.GET("/logs", logHandler.Query)
+			protected.GET("/logs", comp.LogHandler.Query)
 
-			// 权限管理
-			protected.GET("/permissions", permHandler.ListPermissions)
-			protected.POST("/permissions", permHandler.CreatePermission)
-			protected.PUT("/permissions/:id", permHandler.UpdatePermission)
-			protected.DELETE("/permissions/:id", permHandler.DeletePermission)
+			protected.GET("/permissions", comp.PermHandler.ListPermissions)
+			protected.POST("/permissions", comp.PermHandler.CreatePermission)
+			protected.PUT("/permissions/:id", comp.PermHandler.UpdatePermission)
+			protected.DELETE("/permissions/:id", comp.PermHandler.DeletePermission)
 		}
 	}
 
-	port := viper.GetString("server.port")
-
-	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: r,
-	}
+	port := string(comp.ServerPort)
+	srv := &http.Server{Addr: ":" + port, Handler: r}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		fmt.Printf("IAM Platform 启动中, 监听端口: %s\n", port)
+		pkgl.Info("服务启动", zap.String("port", port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("服务启动失败: %v", err)
+			pkgl.Fatal("服务启动失败", zap.Error(err))
 		}
 	}()
 
 	<-quit
-	fmt.Println("server shutting down...")
+	pkgl.Info("server shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("服务关闭失败: %v", err)
+		pkgl.Fatal("服务关闭失败", zap.Error(err))
 	}
 
-	close(logChan)
+	close(comp.LogChan)
 	logWg.Wait()
-	sqlDB.Close()
-	rdb.Close()
-	fmt.Println("server exited")
+	comp.SQLDB.Close()
+	comp.RedisClient.Close()
+	pkgl.Info("server exited")
 }

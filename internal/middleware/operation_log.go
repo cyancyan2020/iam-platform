@@ -2,13 +2,15 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/cyancyan2020/iam-platform/internal/model"
 	"github.com/cyancyan2020/iam-platform/internal/repository"
 	pkgjwt "github.com/cyancyan2020/iam-platform/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
+	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 )
 
 // OperationLogMiddleware 操作日志中间件（异步写入）
@@ -58,7 +60,7 @@ func OperationLogMiddleware(logChan chan<- model.OperationLog) gin.HandlerFunc {
 func LogConsumer(logRepo repository.OperationLogRepository, logChan <-chan model.OperationLog) {
 	for entry := range logChan {
 		if err := logRepo.Create(context.Background(), &entry); err != nil {
-			log.Printf("写入操作日志失败: %v", err)
+			pkgl.Error("写入操作日志失败", zap.Uint64("userID", entry.UserID), zap.Error(err))
 		}
 	}
 }

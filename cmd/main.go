@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +31,8 @@ func main() {
 		log.Fatalf("读取配置文件失败: %v", err)
 	}
 
+	viper.SetEnvPrefix("IAM")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	db, err := gorm.Open(mysql.Open(viper.GetString("database.dsn")), &gorm.Config{})
@@ -113,5 +116,8 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("服务关闭失败: %v", err)
 	}
+
+	sqlDB.Close()
+	rdb.Close()
 	fmt.Println("server exited")
 }

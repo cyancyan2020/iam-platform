@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/cyancyan2020/iam-platform/internal/service"
+	pkgjwt "github.com/cyancyan2020/iam-platform/pkg/jwt"
 	pkgl "github.com/cyancyan2020/iam-platform/pkg/log"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -168,7 +169,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 }
 
 func (h *UserHandler) Profile(c *gin.Context) {
-	claims, ok := c.Get("user")
+	val, ok := c.Get("user")
 	if !ok {
 		pkgl.Error("Profile", zap.String("error", "claims not found in context"))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -177,8 +178,28 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
-		"data": claims,
+
+	claims := val.(*pkgjwt.Claims)
+	user, err := h.userService.ListUsers(c.Request.Context(), &service.UserListQuery{
+		Keyword: claims.Username,
+		Page:    1,
+		Size:    1,
 	})
+	if err != nil {
+		pkgl.Error("Profile", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "服务器内部错误"})
+		return
+	}
+
+	profile := gin.H{
+		"user_id":  claims.UserID,
+		"username": claims.Username,
+		"role_id":  uint64(0),
+	}
+	if len(user.List) > 0 {
+		profile["role_id"] = user.List[0].RoleID
+		profile["role_name"] = user.List[0].RoleName
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": profile})
 }

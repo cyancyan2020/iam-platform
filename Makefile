@@ -1,6 +1,6 @@
 BINARY := iam-platform
 GO := go
-MAIN := cmd/main.go
+MAIN := ./cmd
 
 .PHONY: run build migrate-up migrate-down test lint
 
@@ -18,6 +18,9 @@ migrate-down:
 
 test:
 	$(GO) test ./...
+
+fix-admin:
+	$(GO) run ./cmd/fixadmin
 
 lint:
 	golangci-lint run ./...
